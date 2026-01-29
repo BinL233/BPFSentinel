@@ -105,5 +105,5 @@ clean:
 	rm -rf $(OUTPUT)
 
 # Generate vmlinux.h if needed
-../utils/vmlinux.h:
+vmlinux.h:
 	$(BPFTOOL) btf dump file /sys/kernel/btf/vmlinux format c > ../utils/vmlinux.h
