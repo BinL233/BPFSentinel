@@ -1,0 +1,44 @@
+{
+  "targets": [
+    {
+      "name": "xdp_handler",
+      "type": "xdp",
+      "tracer_object": ".output/trace_xdp.o",
+      "fentry_name": "trace_xdp_entry",
+      "fexit_name": "trace_xdp_exit",
+      "metrics": ["time", "packet_len", "ret"]
+    },
+    {
+      "name": "tc_handler",
+      "type": "tc",
+      "tracer_object": ".output/trace_tc.o",
+      "fentry_name": "trace_tc_entry",
+      "fexit_name": "trace_tc_exit",
+      "metrics": ["time", "packet_len", "ret"]
+    },
+    {
+      "name": "kprobe_handler",
+      "type": "kprobe",
+      "tracer_object": ".output/trace_kprobe.o",
+      "fentry_name": "trace_kprobe_entry",
+      "fexit_name": "trace_kprobe_exit",
+      "metrics": ["time", "ret"]
+    },
+    {
+      "name": "fentry_handler",
+      "type": "fentry",
+      "tracer_object": ".output/trace_fentry.o",
+      "fentry_name": "trace_fentry_entry",
+      "fexit_name": "trace_fentry_exit",
+      "metrics": ["time", "ret"]
+    },
+    {
+      "name": "sockops_handler",
+      "type": "sockops",
+      "tracer_object": ".output/trace_sockops.o",
+      "fentry_name": "trace_sockops_entry",
+      "fexit_name": "trace_sockops_exit",
+      "metrics": ["time", "ret"]
+    }
+  ]
+}
