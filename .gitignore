@@ -1,0 +1,21 @@
+# Build outputs
+.output/
+*.o
+loader
+
+# BPF pinned programs
+/sys/fs/bpf/xdp_prog
+/sys/fs/bpf/trace_prog
+
+# Generated files
+src/utils/vmlinux.h
+
+# Editor files
+.vscode/
+*.swp
+*.swo
+*~
+
+# Python cache
+__pycache__/
+*.pyc

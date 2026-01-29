@@ -6,7 +6,7 @@ ARCH := $(shell uname -m | sed 's/x86_64/x86/' | sed 's/aarch64/arm64/')
 LIBBPF_LIB ?= /lib/x86_64-linux-gnu/libbpf.so.0
 
 # Include directories for BPF headers
-INCLUDES := -I. -I/usr/include -I/usr/include/$(shell uname -m)-linux-gnu
+INCLUDES := -I. -I../utils -I/usr/include -I/usr/include/$(shell uname -m)-linux-gnu
 
 # Compiler flags for BPF
 BPF_CFLAGS := -g -O2 -target bpf -D__TARGET_ARCH_$(ARCH) $(INCLUDES)
@@ -105,5 +105,5 @@ clean:
 	rm -rf $(OUTPUT)
 
 # Generate vmlinux.h if needed
-vmlinux.h:
-	$(BPFTOOL) btf dump file /sys/kernel/btf/vmlinux format c > vmlinux.h
+../utils/vmlinux.h:
+	$(BPFTOOL) btf dump file /sys/kernel/btf/vmlinux format c > ../utils/vmlinux.h
