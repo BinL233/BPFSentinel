@@ -3,12 +3,21 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include "trace_shared.h"
+#include "../../visor/throttle.bpf.h"
 
 char LICENSE[] SEC("license") = "GPL";
 
 SEC("fentry/GENERIC")
 int BPF_PROG(trace_xdp_entry, struct xdp_buff *xdp_ctx)
 {
+    __u64 throttle_start_time = 0;
+    
+    // Check budget before proceeding
+    if (!check_budget(&throttle_start_time)) {
+        update_stats(1, 0);
+        return 0;
+    }
+
     __u32 zero = 0;
     struct metrics_config *cfg = bpf_map_lookup_elem(&metrics_cfg, &zero);
     int enable_time = 1, enable_pkt = 1, enable_ret = 1;
@@ -21,6 +30,7 @@ int BPF_PROG(trace_xdp_entry, struct xdp_buff *xdp_ctx)
     void *data_end = xdp_ctx->data_end;
     void *data = xdp_ctx->data;
     if (data_end <= data) {
+        debit_budget(throttle_start_time);
         return 0;
     }
 
@@ -50,6 +60,10 @@ int BPF_PROG(trace_xdp_entry, struct xdp_buff *xdp_ctx)
 
         // bpf_printk("[TRACE] xdp_handler entry id=%llu\n", event_id);
     }
+    
+    // Debit budget after execution
+    debit_budget(throttle_start_time);
+    
     return 0;
 }
 
@@ -71,9 +85,11 @@ int BPF_PROG(trace_xdp_exit, struct xdp_buff *xdp_ctx, int ret)
         return 0;
     }
 
+    __u64 delta = 0;
     if (enable_time) {
         __u64 now = bpf_ktime_get_ns();
-        infop->duration_ns = now - infop->start_ns;
+        delta = now - infop->start_ns;
+        infop->duration_ns = delta;
     }
 
     if (enable_ret) {
@@ -92,6 +108,9 @@ int BPF_PROG(trace_xdp_exit, struct xdp_buff *xdp_ctx, int ret)
     //     bpf_printk("[TRACE] xdp_handler exit id=%llu dur_ns=%llu ret=%d\n",
     //            infop->id, infop->duration_ns, ret);
     // }
+    
+    // Update throttle stats
+    update_stats(0, delta);
     
     return 0;
 }

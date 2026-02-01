@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
  * Visor Controller - User-space daemon for eBPF compute throttling
  * 

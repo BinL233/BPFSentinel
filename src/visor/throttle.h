@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #ifndef __THROTTLE_H__
 #define __THROTTLE_H__
 
@@ -20,4 +19,4 @@ struct throttle_stats {
 
 #define STATS_KEY 0
 
-#endif /* __THROTTLE_H__ */
+#endif

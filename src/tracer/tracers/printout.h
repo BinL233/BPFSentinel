@@ -115,7 +115,7 @@ static inline int printout(void *ctx, void *data, size_t size)
             }
             case TRACE_PROG_SOCKOPS: {
                 printf("[SOCKOPS] id=%llu", (unsigned long long)ti->id);
-                if (!mc) {
+                if (!mc) {:verbose nmap <C-t>:verbose nmap <C-t>
                     printf(" ret=%u dur_ns=%llu start_ns=%llu\n",
                            (unsigned int)ti->ret,
                            (unsigned long long)ti->duration_ns,

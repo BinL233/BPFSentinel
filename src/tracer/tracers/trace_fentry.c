@@ -4,12 +4,21 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include "trace_shared.h"
+#include "../../visor/throttle.bpf.h"
 
 char LICENSE[] SEC("license") = "GPL";
 
 SEC("fentry/GENERIC")
 int BPF_PROG(trace_fentry_entry)
 {
+	__u64 throttle_start_time = 0;
+	
+	// Check budget before proceeding
+	if (!check_budget(&throttle_start_time)) {
+		update_stats(1, 0);
+		return 0;
+	}
+
 	__u32 zero = 0;
 	struct metrics_config *cfg = bpf_map_lookup_elem(&metrics_cfg, &zero);
 	int enable_time = 1, enable_ret = 1; /* no pkt len for generic handlers */
@@ -39,6 +48,10 @@ int BPF_PROG(trace_fentry_entry)
 		info.prog_type = TRACE_PROG_FENTRY;
 		bpf_map_update_elem(&trace_work, &work_key, &info, BPF_ANY);
 	}
+	
+	// Debit budget after execution
+	debit_budget(throttle_start_time);
+	
 	return 0;
 }
 
@@ -60,8 +73,9 @@ int BPF_PROG(trace_fentry_exit, int ret)
 		return 0;
 	}
 
+	__u64 delta = 0;
 	if (enable_time) {
-		__u64 delta = bpf_ktime_get_ns() - infop->start_ns;
+		delta = bpf_ktime_get_ns() - infop->start_ns;
 		infop->duration_ns = delta;
 	}
 
@@ -75,6 +89,10 @@ int BPF_PROG(trace_fentry_exit, int ret)
 		bpf_ringbuf_submit(out, 0);
 	}
 	bpf_map_delete_elem(&trace_work, &work_key);
+	
+	// Update throttle stats
+	update_stats(0, delta);
+	
 	return 0;
 }
 
