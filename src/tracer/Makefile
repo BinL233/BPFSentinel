@@ -38,12 +38,12 @@ $(OUTPUT):
 	mkdir -p $(OUTPUT)
 
 # Build XDP program (from targets/)
-$(XDP_OBJ): targets/xdp_handler.c
+$(XDP_OBJ): ../targets/xdp_handler.c
 	$(CLANG) $(BPF_CFLAGS) -c $< -o $@
 	$(LLVM_STRIP) -g $@
 
 # Build second XDP program (from targets/)
-$(XDP2_OBJ): targets/xdp_handler_2.c
+$(XDP2_OBJ): ../targets/xdp_handler_2.c
 	$(CLANG) $(BPF_CFLAGS) -c $< -o $@
 	$(LLVM_STRIP) -g $@
 
@@ -53,7 +53,7 @@ $(TRACE_OBJ): tracers/trace_xdp.c
 	$(LLVM_STRIP) -g $@
 
 # Build TC program (from targets/)
-$(TC_OBJ): targets/tc_handler.c
+$(TC_OBJ): ../targets/tc_handler.c
 	$(CLANG) $(BPF_CFLAGS) -c $< -o $@
 	$(LLVM_STRIP) -g $@
 
@@ -78,17 +78,17 @@ $(TRACE_SOCKOPS_OBJ): tracers/trace_sockops.c
 	$(LLVM_STRIP) -g $@
 
 # Build kprobe example program
-$(KPROBE_OBJ): targets/kprobe_handler.c
+$(KPROBE_OBJ): ../targets/kprobe_handler.c
 	$(CLANG) $(BPF_CFLAGS) -c $< -o $@
 	$(LLVM_STRIP) -g $@
 
 # Build fentry example program
-$(FENTRY_OBJ): targets/fentry_handler.c
+$(FENTRY_OBJ): ../targets/fentry_handler.c
 	$(CLANG) $(BPF_CFLAGS) -c $< -o $@
 	$(LLVM_STRIP) -g $@
 
 # Build sock_ops example program
-$(SOCKOPS_OBJ): targets/sockops_handler.c
+$(SOCKOPS_OBJ): ../targets/sockops_handler.c
 	$(CLANG) $(BPF_CFLAGS) -c $< -o $@
 	$(LLVM_STRIP) -g $@
 
@@ -98,8 +98,8 @@ $(TRACER_LOADER): tracers/loaders/tracer_loader.c tracers/loaders/xdp_tracer_loa
 
 
 ## Target dispatcher loader
-$(TARGET_LOADER): targets/loaders/target_loader.c targets/loaders/xdp_loader.c targets/loaders/tc_loader.c targets/loaders/kprobe_loader.c targets/loaders/sockops_loader.c targets/loaders/fentry_loader.c ../utils/cJSON.c $(XDP_OBJ) $(XDP2_OBJ) $(TC_OBJ) $(KPROBE_OBJ) $(SOCKOPS_OBJ) $(FENTRY_OBJ)
-	$(CC) -g -Wall targets/loaders/target_loader.c targets/loaders/xdp_loader.c targets/loaders/tc_loader.c targets/loaders/kprobe_loader.c targets/loaders/sockops_loader.c targets/loaders/fentry_loader.c ../utils/cJSON.c -o $@ $(LIBBPF_LIB) -lelf -lz -Wl,-rpath,/lib/x86_64-linux-gnu -Wl,-rpath-link,/lib/x86_64-linux-gnu
+$(TARGET_LOADER): ../targets/loaders/target_loader.c ../targets/loaders/xdp_loader.c ../targets/loaders/tc_loader.c ../targets/loaders/kprobe_loader.c ../targets/loaders/sockops_loader.c ../targets/loaders/fentry_loader.c ../utils/cJSON.c $(XDP_OBJ) $(XDP2_OBJ) $(TC_OBJ) $(KPROBE_OBJ) $(SOCKOPS_OBJ) $(FENTRY_OBJ)
+	$(CC) -g -Wall ../targets/loaders/target_loader.c ../targets/loaders/xdp_loader.c ../targets/loaders/tc_loader.c ../targets/loaders/kprobe_loader.c ../targets/loaders/sockops_loader.c ../targets/loaders/fentry_loader.c ../utils/cJSON.c -o $@ $(LIBBPF_LIB) -lelf -lz -Wl,-rpath,/lib/x86_64-linux-gnu -Wl,-rpath-link,/lib/x86_64-linux-gnu
 
 clean:
 	rm -rf $(OUTPUT)

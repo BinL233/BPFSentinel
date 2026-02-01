@@ -13,7 +13,7 @@ IFACE="${1:-${IFACE:-$IFACE_DEFAULT}}"
 
 PIN_DIR="/sys/fs/bpf/links"
 CGROUP_PATH=${SOCKOPS_CGROUP_PATH:-/sys/fs/cgroup}
-CONFIG_PATH="configs/config.json"
+CONFIG_PATH="../configs/config.json"
 
 log() {
   echo "[cleanup] $*"

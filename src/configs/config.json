@@ -40,5 +40,5 @@
       "fexit_name": "trace_sockops_exit",
       "metrics": ["time", "ret"]
     }
-  ]
+  ],
 }

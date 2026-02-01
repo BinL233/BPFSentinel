@@ -86,7 +86,7 @@ int main(int argc, char **argv)
     }
     printf("[tracer-loader] PRINTF_FREQ=%d (printing 1 of every %d events)\n", g_print_freq, g_print_freq);
 
-    const char *config_path = "configs/config.json";
+    const char *config_path = "../configs/config.json";
     if (argc > 1) {
         config_path = argv[1];
     }

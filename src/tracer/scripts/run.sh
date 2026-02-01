@@ -49,7 +49,7 @@ ip link set dev "$INTERFACE" xdp off 2>/dev/null || true
 
 echo "[run] Attaching targets via dispatcher (.output/target_loader)"
 if [ -x .output/target_loader ]; then
-    if ! .output/target_loader "$INTERFACE" configs/config.json; then
+    if ! .output/target_loader "$INTERFACE" ../configs/config.json; then
         echo "[run] ERROR: target_loader failed" >&2
         exit 1
     fi
@@ -60,7 +60,7 @@ fi
 
 echo "[run] Attempting to start tracer loader"
 if [ -x .output/tracer_loader ]; then
-    .output/tracer_loader configs/config.json || echo "[run] tracer_loader failed"
+    .output/tracer_loader ../configs/config.json || echo "[run] tracer_loader failed"
 else
     echo "[run] tracer_loader binary missing; build skipped or failed"
 fi

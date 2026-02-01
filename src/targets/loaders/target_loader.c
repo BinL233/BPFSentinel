@@ -39,7 +39,7 @@ static enum { LOAD_NONE=0, LOAD_XDP, LOAD_TC, LOAD_KPROBE, LOAD_SOCKOPS, LOAD_FE
 int main(int argc, char **argv)
 {
     const char *ifname = "lima0";
-    const char *config_path = "configs/config.json";
+    const char *config_path = "../configs/config.json";
 
     if (argc > 1) {
         ifname = argv[1];
