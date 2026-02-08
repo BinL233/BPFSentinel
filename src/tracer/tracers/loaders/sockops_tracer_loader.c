@@ -70,6 +70,7 @@ int load_sockops_tracer(const char *target_name,
     __u32 target_prog_id = 0;
     if (bpf_obj_get_info_by_fd(target_fd, &target_info, &target_info_len) == 0) {
         target_prog_id = target_info.id;
+        fprintf(stderr, "    [sockops-tracer] target '%s' has ID %u\n", target_name, target_prog_id);
     }
 
     struct bpf_object *obj = bpf_object__open_file(tracer_object_path, NULL);

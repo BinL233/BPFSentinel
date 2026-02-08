@@ -73,6 +73,7 @@ int load_xdp_tracer(const char *target_name,
     __u32 target_prog_id = 0;
     if (bpf_obj_get_info_by_fd(target_fd, &target_info, &target_info_len) == 0) {
         target_prog_id = target_info.id;
+        fprintf(stderr, "    [xdp-tracer] target '%s' has ID %u\n", target_name, target_prog_id);
     }
 
     struct bpf_object *obj = bpf_object__open_file(tracer_object_path, NULL);
@@ -108,15 +109,23 @@ int load_xdp_tracer(const char *target_name,
 
     if (cfg_map) {
         int cfg_fd = bpf_map__fd(cfg_map);
-        struct { unsigned int enable_time, enable_pkt_len, enable_ret, target_prog_id; } cfg = {0};
+        struct { unsigned int enable_time, enable_pkt_len, enable_ret, enable_op, target_prog_id; } cfg = {0};
         cfg.enable_time = metrics->want_time;
         cfg.enable_pkt_len = metrics->want_pkt_len;
         cfg.enable_ret = metrics->want_ret;
+        cfg.enable_op = 0;  // not used for XDP
         cfg.target_prog_id = target_prog_id;
         __u32 k = 0;
 
         if (bpf_map_update_elem(cfg_fd, &k, &cfg, BPF_ANY) != 0) {
             fprintf(stderr, "    [xdp-tracer] warning: failed metrics_cfg update for %s\n", target_name);
+        } else {
+            // Verify the write
+            struct { unsigned int enable_time, enable_pkt_len, enable_ret, target_prog_id; } verify = {0};
+            if (bpf_map_lookup_elem(cfg_fd, &k, &verify) == 0) {
+                fprintf(stderr, "    [xdp-tracer] Verified: wrote target_prog_id=%u, read back=%u\n", 
+                        target_prog_id, verify.target_prog_id);
+            }
         }
 
     } else {

@@ -90,6 +90,7 @@ int load_kprobe_tracer(const char *target_name,
     __u32 target_prog_id = 0;
     if (bpf_obj_get_info_by_fd(target_fd, &target_info, &target_info_len) == 0) {
         target_prog_id = target_info.id;
+        fprintf(stderr, "    [kprobe-tracer] target '%s' has ID %u\n", target_name, target_prog_id);
     }
 
     struct bpf_object *obj = bpf_object__open_file(tracer_object_path, NULL);
@@ -123,11 +124,13 @@ int load_kprobe_tracer(const char *target_name,
     struct bpf_map *cfg_map = bpf_object__find_map_by_name(obj, "metrics_cfg");
     if (cfg_map) {
         int cfg_fd = bpf_map__fd(cfg_map);
-        struct { unsigned int enable_time, enable_pkt_len, enable_ret, target_prog_id; } cfg = {0};
+        struct { unsigned int enable_time, enable_pkt_len, enable_ret, enable_op, target_prog_id; } cfg = {0};
         cfg.enable_time = metrics->want_time;
         cfg.enable_pkt_len = 0; /* not applicable */
         cfg.enable_ret = metrics->want_ret;
+        cfg.enable_op = 0;  // not used for kprobe
         cfg.target_prog_id = target_prog_id;
+        fprintf(stderr, "    [kprobe-tracer] Writing target_prog_id=%u to config map\n", target_prog_id);
         __u32 k = 0;
         if (bpf_map_update_elem(cfg_fd, &k, &cfg, BPF_ANY) != 0) {
             fprintf(stderr, "    [kprobe-tracer] warning: failed metrics_cfg update for %s\n", target_name);
