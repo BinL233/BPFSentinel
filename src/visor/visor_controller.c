@@ -22,10 +22,13 @@
 #define REFILL_INTERVAL_SEC 1
 #define TARGET_CPU_PCT 5
 #define ADAPTIVE_THRESHOLD_PCT 6  // Trigger adaptation if over 6%
+#define TERMINATION_THRESHOLD_PCT 6  // Terminate program if exceeds this
 
 static volatile sig_atomic_t keep_running = 1;
 static int token_bucket_fd = -1;
 static int stats_map_fd = -1;
+static int terminate_on_exceed = 0;  // Safety: disabled by default
+static double termination_threshold = TERMINATION_THRESHOLD_PCT;
 
 // Signal handler for graceful shutdown
 static void sig_handler(int signo)
@@ -45,6 +48,46 @@ static int enable_bpf_stats(void)
     fprintf(fp, "1\n");
     fclose(fp);
     printf("[Visor] BPF statistics enabled\n");
+    return 0;
+}
+
+// Terminate an eBPF program by ID
+static int terminate_bpf_program(int prog_id)
+{
+    int prog_fd;
+    struct bpf_prog_info info = {};
+    __u32 info_len = sizeof(info);
+    time_t now = time(NULL);
+    
+    fprintf(stderr, "\n[Visor] ===============================================\n");
+    fprintf(stderr, "[Visor] TERMINATION TRIGGERED at %s", ctime(&now));
+    fprintf(stderr, "[Visor] Target eBPF Program ID: %d\n", prog_id);
+    fprintf(stderr, "[Visor] Reason: CPU usage exceeded termination threshold (%.1f%%)\n", 
+            termination_threshold);
+    fprintf(stderr, "[Visor] ===============================================\n");
+    
+    prog_fd = bpf_prog_get_fd_by_id(prog_id);
+    if (prog_fd < 0) {
+        fprintf(stderr, "[Visor] Failed to get FD for program %d: %s\n", 
+                prog_id, strerror(errno));
+        fprintf(stderr, "[Visor] Program may already be unloaded\n");
+        return -1;
+    }
+    
+    // Get program info for logging
+    if (bpf_obj_get_info_by_fd(prog_fd, &info, &info_len) == 0) {
+        fprintf(stderr, "[Visor] Program name: %s\n", info.name);
+        fprintf(stderr, "[Visor] Program type: %d\n", info.type);
+        fprintf(stderr, "[Visor] Total runtime: %llu ns\n", info.run_time_ns);
+    }
+    
+    close(prog_fd);
+    
+    fprintf(stderr, "[Visor] NOTE: eBPF program with ID %d identified for termination.\n", prog_id);
+    fprintf(stderr, "[Visor] To fully unload the program, use: bpftool prog detach id %d\n", prog_id);
+    fprintf(stderr, "[Visor] Or reload the eBPF program with a fresh instance.\n");
+    fprintf(stderr, "[Visor] Visor controller will now exit.\n");
+    
     return 0;
 }
 
@@ -139,6 +182,15 @@ static __u64 adaptive_budget_adjustment(__u64 base_budget, int prog_id,
         printf("[Visor] Actual CPU usage: %.2f%% (target: %d%%)\n", 
                actual_cpu_pct, TARGET_CPU_PCT);
         
+        // Check for termination condition first
+        if (terminate_on_exceed && actual_cpu_pct > termination_threshold) {
+            fprintf(stderr, "[Visor] CRITICAL: CPU usage %.2f%% exceeds termination threshold %.1f%%\n",
+                    actual_cpu_pct, termination_threshold);
+            terminate_bpf_program(prog_id);
+            keep_running = 0;  // Signal main loop to exit
+            return base_budget;
+        }
+        
         // Adaptive adjustment
         if (actual_cpu_pct > ADAPTIVE_THRESHOLD_PCT) {
             __u64 adjusted = base_budget * 0.9;  // Reduce by 10%
@@ -164,6 +216,22 @@ static __u64 adaptive_budget_adjustment(__u64 base_budget, int prog_id,
     return base_budget;
 }
 
+static void print_usage(const char *prog_name)
+{
+    fprintf(stderr, "Usage: %s [OPTIONS] [PROG_ID]\n", prog_name);
+    fprintf(stderr, "\nOptions:\n");
+    fprintf(stderr, "  --terminate-on-exceed    Enable program termination when CPU exceeds threshold\n");
+    fprintf(stderr, "  --termination-threshold PCT  Set termination threshold (default: %.1f%%)\n", 
+            (double)TERMINATION_THRESHOLD_PCT);
+    fprintf(stderr, "  --help                   Show this help message\n");
+    fprintf(stderr, "\nArguments:\n");
+    fprintf(stderr, "  PROG_ID                  eBPF program ID to monitor (optional)\n");
+    fprintf(stderr, "\nExamples:\n");
+    fprintf(stderr, "  %s 123                   # Monitor program 123, no termination\n", prog_name);
+    fprintf(stderr, "  %s --terminate-on-exceed 123  # Monitor and terminate if exceeds 6%%\n", prog_name);
+    fprintf(stderr, "  %s --terminate-on-exceed --termination-threshold 10.0 123\n", prog_name);
+}
+
 int main(int argc, char **argv)
 {
     struct bpf_object *obj = NULL;
@@ -173,9 +241,36 @@ int main(int argc, char **argv)
     unsigned long long last_runtime_ns = 0;
     time_t last_time = time(NULL);
     int err;
+    int i;
     
-    if (argc > 1) {
-        prog_id = atoi(argv[1]);
+    // Parse command-line arguments
+    for (i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--terminate-on-exceed") == 0) {
+            terminate_on_exceed = 1;
+        } else if (strcmp(argv[i], "--termination-threshold") == 0) {
+            if (i + 1 < argc) {
+                termination_threshold = atof(argv[++i]);
+                if (termination_threshold <= 0) {
+                    fprintf(stderr, "Error: Invalid termination threshold\n");
+                    print_usage(argv[0]);
+                    return 1;
+                }
+            } else {
+                fprintf(stderr, "Error: --termination-threshold requires a value\n");
+                print_usage(argv[0]);
+                return 1;
+            }
+        } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
+            print_usage(argv[0]);
+            return 0;
+        } else if (argv[i][0] != '-') {
+            // Assume it's the program ID
+            prog_id = atoi(argv[i]);
+        } else {
+            fprintf(stderr, "Error: Unknown option: %s\n", argv[i]);
+            print_usage(argv[0]);
+            return 1;
+        }
     }
     
     // Set up signal handlers
@@ -186,6 +281,19 @@ int main(int argc, char **argv)
     printf("[Visor] Target: %d%% CPU, Budget per interval: %llu ns (%.2f ms)\n",
            TARGET_CPU_PCT, BUDGET_PER_INTERVAL_NS, 
            BUDGET_PER_INTERVAL_NS / 1000000.0);
+    
+    if (terminate_on_exceed) {
+        printf("[Visor] *** TERMINATION ENABLED: Programs exceeding %.1f%% CPU will be terminated ***\n",
+               termination_threshold);
+    } else {
+        printf("[Visor] Termination disabled (use --terminate-on-exceed to enable)\n");
+    }
+    
+    if (prog_id > 0) {
+        printf("[Visor] Monitoring eBPF program ID: %d\n", prog_id);
+    } else {
+        printf("[Visor] No specific program ID provided (general monitoring mode)\n");
+    }
     
     // Enable BPF statistics
     if (enable_bpf_stats() != 0) {
