@@ -26,7 +26,7 @@ static inline int printout(void *ctx, void *data, size_t size)
 
         switch (ti->prog_type) {
             case TRACE_PROG_XDP: {
-                printf("[XDP] id=%llu", (unsigned long long)ti->id);
+                printf("[XDP] id=%llu prog_id=%u", (unsigned long long)ti->id, (unsigned int)ti->prog_id);
                 if (!mc) {
                     printf(" ret=%u pkt_len=%u dur_ns=%llu start_ns=%llu\n",
                            (unsigned int)ti->ret,
@@ -50,7 +50,7 @@ static inline int printout(void *ctx, void *data, size_t size)
                 break;
             }
             case TRACE_PROG_TC: {
-                printf("[TC] id=%llu", (unsigned long long)ti->id);
+                printf("[TC] id=%llu prog_id=%u", (unsigned long long)ti->id, (unsigned int)ti->prog_id);
                 if (!mc) {
                     printf(" ret=%u pkt_len=%u dur_ns=%llu start_ns=%llu\n",
                            (unsigned int)ti->ret,
@@ -74,7 +74,7 @@ static inline int printout(void *ctx, void *data, size_t size)
                 break;
             }
             case TRACE_PROG_KPROBE: {
-                printf("[KPROBE] id=%llu", (unsigned long long)ti->id);
+                printf("[KPROBE] id=%llu prog_id=%u", (unsigned long long)ti->id, (unsigned int)ti->prog_id);
                 if (!mc) {
                     printf(" ret=%u dur_ns=%llu start_ns=%llu\n",
                            (unsigned int)ti->ret,
@@ -94,7 +94,7 @@ static inline int printout(void *ctx, void *data, size_t size)
                 break;
             }
             case TRACE_PROG_FENTRY: {
-                printf("[FENTRY] id=%llu", (unsigned long long)ti->id);
+                printf("[FENTRY] id=%llu prog_id=%u", (unsigned long long)ti->id, (unsigned int)ti->prog_id);
                 if (!mc) {
                     printf(" ret=%lld dur_ns=%llu start_ns=%llu\n",
                            (long long)ti->ret,
@@ -114,7 +114,7 @@ static inline int printout(void *ctx, void *data, size_t size)
                 break;
             }
             case TRACE_PROG_SOCKOPS: {
-                printf("[SOCKOPS] id=%llu", (unsigned long long)ti->id);
+                printf("[SOCKOPS] id=%llu prog_id=%u", (unsigned long long)ti->id, (unsigned int)ti->prog_id);
                 if (!mc) {:verbose nmap <C-t>:verbose nmap <C-t>
                     printf(" ret=%u dur_ns=%llu start_ns=%llu\n",
                            (unsigned int)ti->ret,
@@ -137,8 +137,8 @@ static inline int printout(void *ctx, void *data, size_t size)
                 break;
             }
             default:
-                printf("[UNKNOWN] id=%llu\n",
-                        (unsigned long long)ti->id);
+                printf("[UNKNOWN] id=%llu prog_id=%u\n",
+                        (unsigned long long)ti->id, (unsigned int)ti->prog_id);
                 break;
         }
     }

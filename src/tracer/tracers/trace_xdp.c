@@ -56,6 +56,7 @@ int BPF_PROG(trace_xdp_entry, struct xdp_buff *xdp_ctx)
 
         info.id = event_id;
         info.prog_type = TRACE_PROG_XDP;
+        info.prog_id = bpf_get_func_id();
         bpf_map_update_elem(&trace_work, &work_key, &info, BPF_ANY);
 
         // bpf_printk("[TRACE] xdp_handler entry id=%llu\n", event_id);

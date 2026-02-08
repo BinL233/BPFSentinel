@@ -46,6 +46,7 @@ int BPF_PROG(trace_sockops_entry, struct bpf_sock_ops *skops)
 
         info.id = eid;
         info.prog_type = TRACE_PROG_SOCKOPS;
+        info.prog_id = bpf_get_func_id();
 
         if (enable_op && skops) {
             __u32 op_val = 0;

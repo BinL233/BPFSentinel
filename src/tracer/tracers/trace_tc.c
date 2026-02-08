@@ -58,6 +58,7 @@ int BPF_PROG(trace_tc_entry, struct sk_buff *skb)
 
         info.id = eid;
         info.prog_type = TRACE_PROG_TC;
+        info.prog_id = bpf_get_func_id();
         bpf_map_update_elem(&trace_work, &work_key, &info, BPF_ANY);
         // bpf_printk("[TRACE] tc_handler entry id=%llu info.pkt_len=%u\n", eid, info.pkt_len);
     }

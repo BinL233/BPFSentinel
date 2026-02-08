@@ -12,7 +12,7 @@
 #include "../printout.h"
 
 #ifndef __cplusplus
-_Static_assert(sizeof(struct trace_info) == 48, "trace_info size mismatch (expected 48 bytes)");
+_Static_assert(sizeof(struct trace_info) == 52, "trace_info size mismatch (expected 52 bytes)");
 #endif
 
 static volatile sig_atomic_t keep_running = 1;

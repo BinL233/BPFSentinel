@@ -46,6 +46,7 @@ int BPF_PROG(trace_kprobe_entry, struct pt_regs *regs)
 
         info.id = eid;
         info.prog_type = TRACE_PROG_KPROBE;
+        info.prog_id = bpf_get_func_id();
         bpf_map_update_elem(&trace_work, &work_key, &info, BPF_ANY);
         // bpf_printk("[TRACE] kprobe_handler entry id=%llu\n", eid);
     }

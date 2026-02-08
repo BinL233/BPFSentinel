@@ -46,6 +46,7 @@ int BPF_PROG(trace_fentry_entry)
 
 		info.id = eid;
 		info.prog_type = TRACE_PROG_FENTRY;
+		info.prog_id = bpf_get_func_id();
 		bpf_map_update_elem(&trace_work, &work_key, &info, BPF_ANY);
 	}
 	
