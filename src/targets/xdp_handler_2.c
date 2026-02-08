@@ -16,8 +16,8 @@ int xdp_handler_2(struct xdp_md *ctx)
     // bpf_printk("[XDP2] Packet received, length: %u bytes\n", pkt_len);
 
     if (data_end < data) {
-        return XDP_ABORTED;
+        return XDP_ABORTED+1000;
     }
 
-    return XDP_PASS;
+    return XDP_PASS+1000;
 }

@@ -1,9 +1,8 @@
-#include "vmlinux.h"
+#include "utils/vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
 #include "trace_shared.h"
-// #include "../../visor/throttle.bpf.h"
 
 char LICENSE[] SEC("license") = "GPL";
 
@@ -11,26 +10,18 @@ char LICENSE[] SEC("license") = "GPL";
 SEC("fentry/GENERIC")
 int BPF_PROG(trace_tc_entry, struct sk_buff *skb)
 {
-    __u64 throttle_start_time = 0;
-    
-    // Check budget before proceeding
-    // if (!check_budget(&throttle_start_time)) {
-    //     update_stats(1, 0);
-    //     return 0;
-    // }
-    //
-    // if (!skb) {
-    //     debit_budget(throttle_start_time);
-    //     return 0;
-    // }
+    if (!skb)
+        return 0;
 
     __u32 zero = 0;
     struct metrics_config *cfg = bpf_map_lookup_elem(&metrics_cfg, &zero);
     int enable_time = 1, enable_pkt = 1, enable_ret = 1;
+    __u32 target_prog_id = 0;
     if (cfg) {
         enable_time = cfg->enable_time;
         enable_pkt = cfg->enable_pkt_len;
         enable_ret = cfg->enable_ret;
+        target_prog_id = cfg->target_prog_id;
     }
 
     __u64 work_key = (__u64)(skb);
@@ -58,13 +49,10 @@ int BPF_PROG(trace_tc_entry, struct sk_buff *skb)
 
         info.id = eid;
         info.prog_type = TRACE_PROG_TC;
+        info.prog_id = target_prog_id;
         bpf_map_update_elem(&trace_work, &work_key, &info, BPF_ANY);
         // bpf_printk("[TRACE] tc_handler entry id=%llu info.pkt_len=%u\n", eid, info.pkt_len);
     }
-    
-    // Debit budget after execution
-    // debit_budget(throttle_start_time);
-    
     return 0;
 }
 
@@ -87,11 +75,9 @@ int BPF_PROG(trace_tc_exit, struct sk_buff *skb, int ret)
         return 0;
     }
 
-    __u64 delta = 0;
     if (enable_time) { 
         __u64 now = bpf_ktime_get_ns(); 
-        delta = now - infop->start_ns;
-        infop->duration_ns = delta; 
+        infop->duration_ns = now - infop->start_ns; 
     }
 
     if (enable_ret) {
@@ -108,9 +94,6 @@ int BPF_PROG(trace_tc_exit, struct sk_buff *skb, int ret)
     // if (enable_time || enable_ret) {
     //     bpf_printk("[TRACE] tc_handler exit id=%llu dur_ns=%llu pkt_len=%llu\n", infop->id, infop->duration_ns, infop->pkt_len);
     // }
-    
-    // Update throttle stats
-    // update_stats(0, delta);
     
     return 0;
 }

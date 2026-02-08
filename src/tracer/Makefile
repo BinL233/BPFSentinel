@@ -6,7 +6,7 @@ ARCH := $(shell uname -m | sed 's/x86_64/x86/' | sed 's/aarch64/arm64/')
 LIBBPF_LIB ?= /lib/x86_64-linux-gnu/libbpf.so.0
 
 # Include directories for BPF headers
-INCLUDES := -I. -I../utils -I/usr/include -I/usr/include/$(shell uname -m)-linux-gnu
+INCLUDES := -I. -I.. -I/usr/include -I/usr/include/$(shell uname -m)-linux-gnu
 
 # Compiler flags for BPF
 BPF_CFLAGS := -g -O2 -target bpf -D__TARGET_ARCH_$(ARCH) $(INCLUDES)
@@ -94,16 +94,16 @@ $(SOCKOPS_OBJ): ../targets/sockops_handler.c
 
 ## Tracer loader
 $(TRACER_LOADER): tracers/loaders/tracer_loader.c tracers/loaders/xdp_tracer_loader.c tracers/loaders/tc_tracer_loader.c tracers/loaders/kprobe_tracer_loader.c tracers/loaders/sockops_tracer_loader.c tracers/loaders/fentry_tracer_loader.c tracers/loaders/tracer_loader.h ../utils/cJSON.c $(TRACE_OBJ) $(TRACE_TC_OBJ) $(TRACE_KPROBE_OBJ) $(TRACE_SOCKOPS_OBJ) $(TRACE_FENTRY_OBJ)
-	$(CC) -g -Wall $(INCLUDES) tracers/loaders/tracer_loader.c tracers/loaders/xdp_tracer_loader.c tracers/loaders/tc_tracer_loader.c tracers/loaders/kprobe_tracer_loader.c tracers/loaders/sockops_tracer_loader.c tracers/loaders/fentry_tracer_loader.c ../utils/cJSON.c -o $@ $(LIBBPF_LIB) -lelf -lz -Wl,-rpath,/lib/x86_64-linux-gnu -Wl,-rpath-link,/lib/x86_64-linux-gnu
+	$(CC) -g -Wall -I.. tracers/loaders/tracer_loader.c tracers/loaders/xdp_tracer_loader.c tracers/loaders/tc_tracer_loader.c tracers/loaders/kprobe_tracer_loader.c tracers/loaders/sockops_tracer_loader.c tracers/loaders/fentry_tracer_loader.c ../utils/cJSON.c -o $@ $(LIBBPF_LIB) -lelf -lz -Wl,-rpath,/lib/x86_64-linux-gnu -Wl,-rpath-link,/lib/x86_64-linux-gnu
 
 
 ## Target dispatcher loader
 $(TARGET_LOADER): ../targets/loaders/target_loader.c ../targets/loaders/xdp_loader.c ../targets/loaders/tc_loader.c ../targets/loaders/kprobe_loader.c ../targets/loaders/sockops_loader.c ../targets/loaders/fentry_loader.c ../utils/cJSON.c $(XDP_OBJ) $(XDP2_OBJ) $(TC_OBJ) $(KPROBE_OBJ) $(SOCKOPS_OBJ) $(FENTRY_OBJ)
-	$(CC) -g -Wall $(INCLUDES) ../targets/loaders/target_loader.c ../targets/loaders/xdp_loader.c ../targets/loaders/tc_loader.c ../targets/loaders/kprobe_loader.c ../targets/loaders/sockops_loader.c ../targets/loaders/fentry_loader.c ../utils/cJSON.c -o $@ $(LIBBPF_LIB) -lelf -lz -Wl,-rpath,/lib/x86_64-linux-gnu -Wl,-rpath-link,/lib/x86_64-linux-gnu
+	$(CC) -g -Wall -I.. ../targets/loaders/target_loader.c ../targets/loaders/xdp_loader.c ../targets/loaders/tc_loader.c ../targets/loaders/kprobe_loader.c ../targets/loaders/sockops_loader.c ../targets/loaders/fentry_loader.c ../utils/cJSON.c -o $@ $(LIBBPF_LIB) -lelf -lz -Wl,-rpath,/lib/x86_64-linux-gnu -Wl,-rpath-link,/lib/x86_64-linux-gnu
 
 clean:
 	rm -rf $(OUTPUT)
 
 # Generate vmlinux.h if needed
 vmlinux.h:
-	$(BPFTOOL) btf dump file /sys/kernel/btf/vmlinux format c > ../utils/vmlinux.h
+	$(BPFTOOL) btf dump file /sys/kernel/btf/vmlinux format c > vmlinux.h

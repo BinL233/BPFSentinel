@@ -1,31 +1,24 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "vmlinux.h"
+#include "utils/vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
 #include "trace_shared.h"
-// #include "../../visor/throttle.bpf.h"
 
 char LICENSE[] SEC("license") = "GPL";
 
 SEC("fentry/GENERIC")
 int BPF_PROG(trace_sockops_entry, struct bpf_sock_ops *skops)
 {
-    __u64 throttle_start_time = 0;
-    
-    // Check budget before proceeding
-    // if (!check_budget(&throttle_start_time)) {
-    //     update_stats(1, 0);
-    //     return 0;
-    // }
-
     __u32 zero = 0;
     struct metrics_config *cfg = bpf_map_lookup_elem(&metrics_cfg, &zero);
     int enable_time = 1, enable_ret = 1, enable_op = 1;
+    __u32 target_prog_id = 0;
     if (cfg) {
         enable_time = cfg->enable_time;
         enable_ret = cfg->enable_ret;
         enable_op = cfg->enable_op;
+        target_prog_id = cfg->target_prog_id;
     }
 
     __u64 key = (__u64)skops;
@@ -46,6 +39,7 @@ int BPF_PROG(trace_sockops_entry, struct bpf_sock_ops *skops)
 
         info.id = eid;
         info.prog_type = TRACE_PROG_SOCKOPS;
+        info.prog_id = target_prog_id;
 
         if (enable_op && skops) {
             __u32 op_val = 0;
@@ -55,10 +49,6 @@ int BPF_PROG(trace_sockops_entry, struct bpf_sock_ops *skops)
         }
         bpf_map_update_elem(&trace_work, &key, &info, BPF_ANY);
     }
-    
-    // Debit budget after execution
-    // debit_budget(throttle_start_time);
-    
     return 0;
 }
 
@@ -79,9 +69,8 @@ int BPF_PROG(trace_sockops_exit, struct bpf_sock_ops *skops, int ret)
     if (!infop)
         return 0;
 
-    __u64 delta = 0;
     if (enable_time) {
-        delta = bpf_ktime_get_ns() - infop->start_ns;
+        __u64 delta = bpf_ktime_get_ns() - infop->start_ns;
         infop->duration_ns = delta;
     }
     if (enable_ret) {
@@ -100,9 +89,5 @@ int BPF_PROG(trace_sockops_exit, struct bpf_sock_ops *skops, int ret)
     //     bpf_printk("[TRACE] sockops_handler exit id=%llu dur_ns=%llu\n", infop->id, infop->duration_ns);
     // if (enable_ret)
     //     bpf_printk("[TRACE] sockops_handler exit id=%llu ret=%d\n", infop->id, ret);
-    
-    // Update throttle stats
-    // update_stats(0, delta);
-    
     return 0;
 }

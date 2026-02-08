@@ -27,6 +27,7 @@ struct trace_info {
     unsigned int id;
     unsigned int prog_type;
     unsigned int op;
+    unsigned int prog_id;
 };
 
 int load_xdp_tracer(const char *target_name,

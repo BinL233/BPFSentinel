@@ -4,7 +4,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <net/if.h>
-#include "../../utils/cJSON.h"
+#include "utils/cJSON.h"
 #include "loader_common.h"
 
 static enum { LOAD_NONE=0, LOAD_XDP, LOAD_TC, LOAD_KPROBE, LOAD_SOCKOPS, LOAD_FENTRY } decide_type(const char *name)

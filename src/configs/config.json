@@ -22,7 +22,7 @@
       "tracer_object": ".output/trace_kprobe.o",
       "fentry_name": "trace_kprobe_entry",
       "fexit_name": "trace_kprobe_exit",
-      "metrics": ["time", "ret"]
+      "metrics": ["time"]
     },
     {
       "name": "fentry_handler",
@@ -30,7 +30,7 @@
       "tracer_object": ".output/trace_fentry.o",
       "fentry_name": "trace_fentry_entry",
       "fexit_name": "trace_fentry_exit",
-      "metrics": ["time", "ret"]
+      "metrics": ["ret"]
     },
     {
       "name": "sockops_handler",

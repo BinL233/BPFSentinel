@@ -7,7 +7,7 @@
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
 #include <limits.h>
-#include "cJSON.h"
+#include "utils/cJSON.h"
 #include "tracer_loader.h"
 #include "../printout.h"
 

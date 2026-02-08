@@ -13,6 +13,7 @@ struct trace_info {
     __u32 id;
     __u32 prog_type;
     __u32 op;
+    __u32 prog_id;
 };
 
 struct {
@@ -44,6 +45,7 @@ struct metrics_config {
     __u32 enable_pkt_len;
     __u32 enable_ret;
     __u32 enable_op;
+    __u32 target_prog_id;
 };
 
 struct {

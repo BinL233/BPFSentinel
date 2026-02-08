@@ -4,27 +4,20 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include "trace_shared.h"
-// #include "../../visor/throttle.bpf.h"
 
 char LICENSE[] SEC("license") = "GPL";
 
 SEC("fentry/GENERIC")
 int BPF_PROG(trace_kprobe_entry, struct pt_regs *regs)
 {
-    __u64 throttle_start_time = 0;
-    
-    // Check budget before proceeding
-    // if (!check_budget(&throttle_start_time)) {
-    //     update_stats(1, 0);
-    //     return 0;
-    // }
-
     __u32 zero = 0;
     struct metrics_config *cfg = bpf_map_lookup_elem(&metrics_cfg, &zero);
     int enable_time = 1, enable_ret = 1; /* no pkt len for generic handlers */
+    __u32 target_prog_id = 0;
     if (cfg) {
         enable_time = cfg->enable_time;
         enable_ret = cfg->enable_ret;
+        target_prog_id = cfg->target_prog_id;
     }
 
     __u64 work_key = bpf_get_current_pid_tgid();
@@ -46,13 +39,10 @@ int BPF_PROG(trace_kprobe_entry, struct pt_regs *regs)
 
         info.id = eid;
         info.prog_type = TRACE_PROG_KPROBE;
+        info.prog_id = target_prog_id;
         bpf_map_update_elem(&trace_work, &work_key, &info, BPF_ANY);
         // bpf_printk("[TRACE] kprobe_handler entry id=%llu\n", eid);
     }
-    
-    // Debit budget after execution
-    // debit_budget(throttle_start_time);
-    
     return 0;
 }
 
@@ -73,9 +63,8 @@ int BPF_PROG(trace_kprobe_exit, struct pt_regs *regs, int ret)
     if (!infop)
         return 0;
 
-    __u64 delta = 0;
     if (enable_time) { 
-        delta = bpf_ktime_get_ns() - infop->start_ns; 
+        __u64 delta = bpf_ktime_get_ns() - infop->start_ns; 
         infop->duration_ns = delta; 
     }
 
@@ -93,9 +82,6 @@ int BPF_PROG(trace_kprobe_exit, struct pt_regs *regs, int ret)
     // if (enable_time || enable_ret) {
     //     bpf_printk("[TRACE] kprobe_handler exit id=%llu dur_ns=%llu ret=%d\n", infop->id, infop->duration_ns, ret);
     // }
-    
-    // Update throttle stats
-    // update_stats(0, delta);
     
     return 0;
 }

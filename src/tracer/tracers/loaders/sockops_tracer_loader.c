@@ -64,6 +64,14 @@ int load_sockops_tracer(const char *target_name,
         return 0;
     }
 
+    /* Get target program ID */
+    struct bpf_prog_info target_info = {};
+    __u32 target_info_len = sizeof(target_info);
+    __u32 target_prog_id = 0;
+    if (bpf_obj_get_info_by_fd(target_fd, &target_info, &target_info_len) == 0) {
+        target_prog_id = target_info.id;
+    }
+
     struct bpf_object *obj = bpf_object__open_file(tracer_object_path, NULL);
     if (libbpf_get_error(obj)) {
         fprintf(stderr, "    [sockops-tracer] failed to open %s\n", tracer_object_path);
@@ -96,11 +104,12 @@ int load_sockops_tracer(const char *target_name,
     struct bpf_map *cfg_map = bpf_object__find_map_by_name(obj, "metrics_cfg");
     if (cfg_map) {
         int cfg_fd = bpf_map__fd(cfg_map);
-        struct { unsigned int enable_time, enable_pkt_len, enable_ret, enable_op; } cfg = {0};
+        struct { unsigned int enable_time, enable_pkt_len, enable_ret, enable_op, target_prog_id; } cfg = {0};
         cfg.enable_time = metrics->want_time;
         cfg.enable_pkt_len = metrics->want_pkt_len; /* typically 0 for sockops */
         cfg.enable_ret = metrics->want_ret;
         cfg.enable_op = metrics->want_op;
+        cfg.target_prog_id = target_prog_id;
         __u32 k = 0;
         if (bpf_map_update_elem(cfg_fd, &k, &cfg, BPF_ANY) != 0) {
             fprintf(stderr, "    [sockops-tracer] warning: failed metrics_cfg update for %s\n", target_name);
