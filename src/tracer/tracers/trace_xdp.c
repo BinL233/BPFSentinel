@@ -3,7 +3,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include "trace_shared.h"
-#include "../../visor/throttle.bpf.h"
+// #include "../../visor/throttle.bpf.h"
 
 char LICENSE[] SEC("license") = "GPL";
 
@@ -13,10 +13,10 @@ int BPF_PROG(trace_xdp_entry, struct xdp_buff *xdp_ctx)
     __u64 throttle_start_time = 0;
     
     // Check budget before proceeding
-    if (!check_budget(&throttle_start_time)) {
-        update_stats(1, 0);
-        return 0;
-    }
+    // if (!check_budget(&throttle_start_time)) {
+    //     update_stats(1, 0);
+    //     return 0;
+    // }
 
     __u32 zero = 0;
     struct metrics_config *cfg = bpf_map_lookup_elem(&metrics_cfg, &zero);
@@ -29,10 +29,10 @@ int BPF_PROG(trace_xdp_entry, struct xdp_buff *xdp_ctx)
 
     void *data_end = xdp_ctx->data_end;
     void *data = xdp_ctx->data;
-    if (data_end <= data) {
-        debit_budget(throttle_start_time);
-        return 0;
-    }
+    // if (data_end <= data) {
+    //     debit_budget(throttle_start_time);
+    //     return 0;
+    // }
 
     __u64 work_key = (__u64)xdp_ctx;
     struct trace_info info = {};
@@ -62,7 +62,7 @@ int BPF_PROG(trace_xdp_entry, struct xdp_buff *xdp_ctx)
     }
     
     // Debit budget after execution
-    debit_budget(throttle_start_time);
+    // debit_budget(throttle_start_time);
     
     return 0;
 }
@@ -110,7 +110,7 @@ int BPF_PROG(trace_xdp_exit, struct xdp_buff *xdp_ctx, int ret)
     // }
     
     // Update throttle stats
-    update_stats(0, delta);
+    // update_stats(0, delta);
     
     return 0;
 }

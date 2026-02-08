@@ -4,7 +4,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include "trace_shared.h"
-#include "../../visor/throttle.bpf.h"
+// #include "../../visor/throttle.bpf.h"
 
 char LICENSE[] SEC("license") = "GPL";
 
@@ -14,10 +14,10 @@ int BPF_PROG(trace_fentry_entry)
 	__u64 throttle_start_time = 0;
 	
 	// Check budget before proceeding
-	if (!check_budget(&throttle_start_time)) {
-		update_stats(1, 0);
-		return 0;
-	}
+	// if (!check_budget(&throttle_start_time)) {
+	// 	update_stats(1, 0);
+	// 	return 0;
+	// }
 
 	__u32 zero = 0;
 	struct metrics_config *cfg = bpf_map_lookup_elem(&metrics_cfg, &zero);
@@ -50,7 +50,7 @@ int BPF_PROG(trace_fentry_entry)
 	}
 	
 	// Debit budget after execution
-	debit_budget(throttle_start_time);
+	// debit_budget(throttle_start_time);
 	
 	return 0;
 }
@@ -91,7 +91,7 @@ int BPF_PROG(trace_fentry_exit, int ret)
 	bpf_map_delete_elem(&trace_work, &work_key);
 	
 	// Update throttle stats
-	update_stats(0, delta);
+	// update_stats(0, delta);
 	
 	return 0;
 }

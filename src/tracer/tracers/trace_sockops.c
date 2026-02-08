@@ -4,7 +4,7 @@
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
 #include "trace_shared.h"
-#include "../../visor/throttle.bpf.h"
+// #include "../../visor/throttle.bpf.h"
 
 char LICENSE[] SEC("license") = "GPL";
 
@@ -14,10 +14,10 @@ int BPF_PROG(trace_sockops_entry, struct bpf_sock_ops *skops)
     __u64 throttle_start_time = 0;
     
     // Check budget before proceeding
-    if (!check_budget(&throttle_start_time)) {
-        update_stats(1, 0);
-        return 0;
-    }
+    // if (!check_budget(&throttle_start_time)) {
+    //     update_stats(1, 0);
+    //     return 0;
+    // }
 
     __u32 zero = 0;
     struct metrics_config *cfg = bpf_map_lookup_elem(&metrics_cfg, &zero);
@@ -57,7 +57,7 @@ int BPF_PROG(trace_sockops_entry, struct bpf_sock_ops *skops)
     }
     
     // Debit budget after execution
-    debit_budget(throttle_start_time);
+    // debit_budget(throttle_start_time);
     
     return 0;
 }
@@ -102,7 +102,7 @@ int BPF_PROG(trace_sockops_exit, struct bpf_sock_ops *skops, int ret)
     //     bpf_printk("[TRACE] sockops_handler exit id=%llu ret=%d\n", infop->id, ret);
     
     // Update throttle stats
-    update_stats(0, delta);
+    // update_stats(0, delta);
     
     return 0;
 }

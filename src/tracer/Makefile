@@ -94,12 +94,12 @@ $(SOCKOPS_OBJ): ../targets/sockops_handler.c
 
 ## Tracer loader
 $(TRACER_LOADER): tracers/loaders/tracer_loader.c tracers/loaders/xdp_tracer_loader.c tracers/loaders/tc_tracer_loader.c tracers/loaders/kprobe_tracer_loader.c tracers/loaders/sockops_tracer_loader.c tracers/loaders/fentry_tracer_loader.c tracers/loaders/tracer_loader.h ../utils/cJSON.c $(TRACE_OBJ) $(TRACE_TC_OBJ) $(TRACE_KPROBE_OBJ) $(TRACE_SOCKOPS_OBJ) $(TRACE_FENTRY_OBJ)
-	$(CC) -g -Wall tracers/loaders/tracer_loader.c tracers/loaders/xdp_tracer_loader.c tracers/loaders/tc_tracer_loader.c tracers/loaders/kprobe_tracer_loader.c tracers/loaders/sockops_tracer_loader.c tracers/loaders/fentry_tracer_loader.c ../utils/cJSON.c -o $@ $(LIBBPF_LIB) -lelf -lz -Wl,-rpath,/lib/x86_64-linux-gnu -Wl,-rpath-link,/lib/x86_64-linux-gnu
+	$(CC) -g -Wall $(INCLUDES) tracers/loaders/tracer_loader.c tracers/loaders/xdp_tracer_loader.c tracers/loaders/tc_tracer_loader.c tracers/loaders/kprobe_tracer_loader.c tracers/loaders/sockops_tracer_loader.c tracers/loaders/fentry_tracer_loader.c ../utils/cJSON.c -o $@ $(LIBBPF_LIB) -lelf -lz -Wl,-rpath,/lib/x86_64-linux-gnu -Wl,-rpath-link,/lib/x86_64-linux-gnu
 
 
 ## Target dispatcher loader
 $(TARGET_LOADER): ../targets/loaders/target_loader.c ../targets/loaders/xdp_loader.c ../targets/loaders/tc_loader.c ../targets/loaders/kprobe_loader.c ../targets/loaders/sockops_loader.c ../targets/loaders/fentry_loader.c ../utils/cJSON.c $(XDP_OBJ) $(XDP2_OBJ) $(TC_OBJ) $(KPROBE_OBJ) $(SOCKOPS_OBJ) $(FENTRY_OBJ)
-	$(CC) -g -Wall ../targets/loaders/target_loader.c ../targets/loaders/xdp_loader.c ../targets/loaders/tc_loader.c ../targets/loaders/kprobe_loader.c ../targets/loaders/sockops_loader.c ../targets/loaders/fentry_loader.c ../utils/cJSON.c -o $@ $(LIBBPF_LIB) -lelf -lz -Wl,-rpath,/lib/x86_64-linux-gnu -Wl,-rpath-link,/lib/x86_64-linux-gnu
+	$(CC) -g -Wall $(INCLUDES) ../targets/loaders/target_loader.c ../targets/loaders/xdp_loader.c ../targets/loaders/tc_loader.c ../targets/loaders/kprobe_loader.c ../targets/loaders/sockops_loader.c ../targets/loaders/fentry_loader.c ../utils/cJSON.c -o $@ $(LIBBPF_LIB) -lelf -lz -Wl,-rpath,/lib/x86_64-linux-gnu -Wl,-rpath-link,/lib/x86_64-linux-gnu
 
 clean:
 	rm -rf $(OUTPUT)
