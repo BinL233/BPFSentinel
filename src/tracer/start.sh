@@ -11,7 +11,7 @@ make clean
 make
 
 echo "[RUN ./scripts/run.sh]"
-sudo ./scripts/run.sh
+sudo ./scripts/run.sh $1
 echo
 
 echo "[RUN ./scripts/cleanup_tracing.sh]"
