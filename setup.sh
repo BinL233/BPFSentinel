@@ -6,6 +6,10 @@ sudo apt install -y clang bpfcc-tools llvm
 sudo apt install -y libc6-dev-i386 libjansson-dev libelf-dev linux-tools-common
 sudo apt install -y linux-headers-$(uname -r) linux-tools-$(uname -r) liblog4c-dev iperf3
 
+echo Install vmlinux
+cd ./src/tracer && make vmlinux.h
+mv vmlinux.h ../utils
+
 echo Install libbpf v1.3.0
 
 cd ~
