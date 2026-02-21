@@ -91,6 +91,16 @@ int main(int argc, char **argv)
         return 1; 
     }
 
+    // Check if wrappers are enabled - if so, skip attachment (wrappers do it)
+    cJSON *use_wrappers_json = cJSON_GetObjectItemCaseSensitive(root, "use_wrappers");
+    int use_wrappers = (use_wrappers_json && (use_wrappers_json->type == cJSON_True));
+    
+    if (use_wrappers) {
+        printf("[target] Wrappers enabled - skipping target attachment (handled by wrapper_loader)\n");
+        cJSON_Delete(root);
+        return 0;
+    }
+
     cJSON *targets = cJSON_GetObjectItemCaseSensitive(root, "targets");
 
     if (!targets || !cJSON_IsArray(targets)) { 
