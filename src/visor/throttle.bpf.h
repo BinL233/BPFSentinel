@@ -81,3 +81,4 @@ static __always_inline void update_stats(int throttled, __u64 runtime_ns)
     }
 }
 
+#endif /* __THROTTLE_BPF_H__ */
