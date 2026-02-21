@@ -1,7 +1,10 @@
 #ifndef __THROTTLE_H__
 #define __THROTTLE_H__
 
+// Use vmlinux.h types if available, otherwise include linux/types.h
+#ifndef __u64
 #include <linux/types.h>
+#endif
 
 // Token bucket configuration
 #define TOKEN_BUCKET_KEY 0
