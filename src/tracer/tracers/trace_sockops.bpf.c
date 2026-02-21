@@ -3,7 +3,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
-#include "trace_shared.h"
+#include "trace_shared.bpf.h"
 
 char LICENSE[] SEC("license") = "GPL";
 

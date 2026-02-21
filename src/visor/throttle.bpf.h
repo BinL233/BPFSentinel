@@ -4,7 +4,7 @@
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 #include "throttle.h"
-#include "maps.h"
+#include "maps.bpf.h"
 
 
 static __always_inline int check_budget(__u64 *start_time)

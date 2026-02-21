@@ -26,13 +26,26 @@ FENTRY_OBJ := $(OUTPUT)/fentry_handler.o
 SOCKOPS_OBJ := $(OUTPUT)/sockops_handler.o
 TARGET_LOADER := $(OUTPUT)/target_loader
 TRACER_LOADER := $(OUTPUT)/tracer_loader
+WRAPPER_LOADER := $(OUTPUT)/wrapper_loader
 
-.PHONY: all clean
+# Wrapper objects
+XDP_WRAPPER_OBJ := $(OUTPUT)/xdp_wrapper.o
+TC_WRAPPER_OBJ := $(OUTPUT)/tc_wrapper.o
+KPROBE_WRAPPER_OBJ := $(OUTPUT)/kprobe_wrapper.o
+SOCKOPS_WRAPPER_OBJ := $(OUTPUT)/sockops_wrapper.o
+FENTRY_WRAPPER_OBJ := $(OUTPUT)/fentry_wrapper.o
 
-all: $(OUTPUT) $(XDP_OBJ) $(XDP2_OBJ) $(TRACE_OBJ) $(TRACER_LOADER) $(TARGET_LOADER)
+.PHONY: all clean wrappers
+
+all: $(OUTPUT) $(XDP_OBJ) $(XDP2_OBJ) $(TRACE_OBJ) $(TRACER_LOADER) $(TARGET_LOADER) $(WRAPPER_LOADER)
 
 # also build TC and other target programs
 all: $(TC_OBJ) $(TRACE_TC_OBJ) $(KPROBE_OBJ) $(FENTRY_OBJ) $(SOCKOPS_OBJ)
+
+# Build wrappers
+all: wrappers
+
+wrappers: $(OUTPUT) $(XDP_WRAPPER_OBJ) $(TC_WRAPPER_OBJ) $(KPROBE_WRAPPER_OBJ) $(SOCKOPS_WRAPPER_OBJ) $(FENTRY_WRAPPER_OBJ)
 
 $(OUTPUT):
 	mkdir -p $(OUTPUT)
@@ -48,7 +61,7 @@ $(XDP2_OBJ): ../targets/xdp_handler_2.c
 	$(LLVM_STRIP) -g $@
 
 # Build tracing program (from tracers/)
-$(TRACE_OBJ): tracers/trace_xdp.c
+$(TRACE_OBJ): tracers/trace_xdp.bpf.c
 	$(CLANG) $(BPF_CFLAGS) -c $< -o $@
 	$(LLVM_STRIP) -g $@
 
@@ -58,22 +71,22 @@ $(TC_OBJ): ../targets/tc_handler.c
 	$(LLVM_STRIP) -g $@
 
 # Build TC tracing program (from tracers/)
-$(TRACE_TC_OBJ): tracers/trace_tc.c
+$(TRACE_TC_OBJ): tracers/trace_tc.bpf.c
 	$(CLANG) $(BPF_CFLAGS) -c $< -o $@
 	$(LLVM_STRIP) -g $@
 
 # Build kprobe tracing program
-$(TRACE_KPROBE_OBJ): tracers/trace_kprobe.c
+$(TRACE_KPROBE_OBJ): tracers/trace_kprobe.bpf.c
 	$(CLANG) $(BPF_CFLAGS) -c $< -o $@
 	$(LLVM_STRIP) -g $@
 
 # Build fentry tracing program
-$(TRACE_FENTRY_OBJ): tracers/trace_fentry.c
+$(TRACE_FENTRY_OBJ): tracers/trace_fentry.bpf.c
 	$(CLANG) $(BPF_CFLAGS) -c $< -o $@
 	$(LLVM_STRIP) -g $@
 
 # Build sockops tracing program
-$(TRACE_SOCKOPS_OBJ): tracers/trace_sockops.c
+$(TRACE_SOCKOPS_OBJ): tracers/trace_sockops.bpf.c
 	$(CLANG) $(BPF_CFLAGS) -c $< -o $@
 	$(LLVM_STRIP) -g $@
 
@@ -100,6 +113,31 @@ $(TRACER_LOADER): tracers/loaders/tracer_loader.c tracers/loaders/xdp_tracer_loa
 ## Target dispatcher loader
 $(TARGET_LOADER): ../targets/loaders/target_loader.c ../targets/loaders/xdp_loader.c ../targets/loaders/tc_loader.c ../targets/loaders/kprobe_loader.c ../targets/loaders/sockops_loader.c ../targets/loaders/fentry_loader.c ../utils/cJSON.c $(XDP_OBJ) $(XDP2_OBJ) $(TC_OBJ) $(KPROBE_OBJ) $(SOCKOPS_OBJ) $(FENTRY_OBJ)
 	$(CC) -g -Wall -I.. ../targets/loaders/target_loader.c ../targets/loaders/xdp_loader.c ../targets/loaders/tc_loader.c ../targets/loaders/kprobe_loader.c ../targets/loaders/sockops_loader.c ../targets/loaders/fentry_loader.c ../utils/cJSON.c -o $@ $(LIBBPF_LIB) -lelf -lz -Wl,-rpath,/lib/x86_64-linux-gnu -Wl,-rpath-link,/lib/x86_64-linux-gnu
+
+## Wrapper loader
+$(WRAPPER_LOADER): ../wrapper/loaders/wrapper_loader.c ../utils/cJSON.c $(XDP_WRAPPER_OBJ) $(TC_WRAPPER_OBJ) $(KPROBE_WRAPPER_OBJ) $(SOCKOPS_WRAPPER_OBJ) $(FENTRY_WRAPPER_OBJ)
+	$(CC) -g -Wall -I.. ../wrapper/loaders/wrapper_loader.c ../utils/cJSON.c -o $@ $(LIBBPF_LIB) -lelf -lz -Wl,-rpath,/lib/x86_64-linux-gnu -Wl,-rpath-link,/lib/x86_64-linux-gnu
+
+# Build wrapper programs (from ../wrapper/)
+$(XDP_WRAPPER_OBJ): ../wrapper/xdp_wrapper.bpf.c
+	$(CLANG) $(BPF_CFLAGS) -c $< -o $@
+	$(LLVM_STRIP) -g $@
+
+$(TC_WRAPPER_OBJ): ../wrapper/tc_wrapper.bpf.c
+	$(CLANG) $(BPF_CFLAGS) -c $< -o $@
+	$(LLVM_STRIP) -g $@
+
+$(KPROBE_WRAPPER_OBJ): ../wrapper/kprobe_wrapper.bpf.c
+	$(CLANG) $(BPF_CFLAGS) -c $< -o $@
+	$(LLVM_STRIP) -g $@
+
+$(SOCKOPS_WRAPPER_OBJ): ../wrapper/sockops_wrapper.bpf.c
+	$(CLANG) $(BPF_CFLAGS) -c $< -o $@
+	$(LLVM_STRIP) -g $@
+
+$(FENTRY_WRAPPER_OBJ): ../wrapper/fentry_wrapper.bpf.c
+	$(CLANG) $(BPF_CFLAGS) -c $< -o $@
+	$(LLVM_STRIP) -g $@
 
 clean:
 	rm -rf $(OUTPUT)

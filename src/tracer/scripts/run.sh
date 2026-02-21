@@ -19,6 +19,7 @@ cleanup() {
     # Attempt to stop tracer/target loaders if still running
     pkill -f tracer_loader || true
     pkill -f target_loader || true
+    pkill -f wrapper_loader || true
 
     # Uninstall TC classifier
     if command -v ./tracers/uninstall_tc.sh >/dev/null 2>&1; then
@@ -30,7 +31,10 @@ cleanup() {
         echo "[cleanup] removing pinned xdp link"
         rm -f /sys/fs/bpf/links/xdp_handler || true
     fi
-    # (trace_info map removed in new workflow; ring buffer not pinned)
+    
+    # Remove pinned visor maps
+    rm -f /sys/fs/bpf/token_bucket || true
+    rm -f /sys/fs/bpf/stats_map || true
 
     # Ensure device has XDP off
     ip link set dev "$INTERFACE" xdp off 2>/dev/null || true
@@ -46,6 +50,16 @@ echo ""
 
 echo "[run] Detaching any existing XDP program (pre-clean)"
 ip link set dev "$INTERFACE" xdp off 2>/dev/null || true
+
+echo "[run] Loading wrappers if enabled (.output/wrapper_loader)"
+if [ -x .output/wrapper_loader ]; then
+    .output/wrapper_loader "$INTERFACE" ../configs/config.json &
+    WRAPPER_PID=$!
+    sleep 2  # Give wrappers time to load
+    echo "[run] Wrapper loader running (PID: $WRAPPER_PID)"
+else
+    echo "[run] wrapper_loader binary missing; wrapper mode disabled"
+fi
 
 echo "[run] Attaching targets via dispatcher (.output/target_loader)"
 if [ -x .output/target_loader ]; then

@@ -1,14 +1,18 @@
-// SPDX-License-Identifier: GPL-2.0
 #include "utils/vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
-#include "trace_shared.h"
+#include <bpf/bpf_core_read.h>
+#include "trace_shared.bpf.h"
 
 char LICENSE[] SEC("license") = "GPL";
 
+// Fentry program to trace the TC program — record start time, pkt_len and id
 SEC("fentry/GENERIC")
-int BPF_PROG(trace_xdp_entry, struct xdp_buff *xdp_ctx)
+int BPF_PROG(trace_tc_entry, struct sk_buff *skb)
 {
+    if (!skb)
+        return 0;
+
     __u32 zero = 0;
     struct metrics_config *cfg = bpf_map_lookup_elem(&metrics_cfg, &zero);
     int enable_time = 1, enable_pkt = 1, enable_ret = 1;
@@ -20,44 +24,41 @@ int BPF_PROG(trace_xdp_entry, struct xdp_buff *xdp_ctx)
         target_prog_id = cfg->target_prog_id;
     }
 
-    void *data_end = xdp_ctx->data_end;
-    void *data = xdp_ctx->data;
-    if (data_end <= data) {
-        return 0;
-    }
-
-    __u64 work_key = (__u64)xdp_ctx;
+    __u64 work_key = (__u64)(skb);
     struct trace_info info = {};
+
     if (enable_time || enable_ret || enable_pkt) {
 
         if (enable_time) {
             info.start_ns = bpf_ktime_get_ns();
         }
 
+        __u32 zero_u32 = 0; 
+        struct seq_counter *seqp = bpf_map_lookup_elem(&event_seq, &zero_u32); 
+        __u64 eid = 0; 
+        
+        if (seqp) { 
+            eid = seqp->next_id; 
+            seqp->next_id++; 
+        }
+
         if (enable_pkt) {
-            info.pkt_len = (__u32)(data_end - data);
+            __u32 pkt_len = BPF_CORE_READ(skb, len);
+            info.pkt_len = pkt_len;
         }
 
-        /* Acquire global sequence id */
-        __u32 zero_u32 = 0; __u64 event_id = 0;
-        struct seq_counter *seqp = bpf_map_lookup_elem(&event_seq, &zero_u32);
-        if (seqp) {
-            event_id = seqp->next_id;
-            seqp->next_id++;
-        }
-
-        info.id = event_id;
-        info.prog_type = TRACE_PROG_XDP;
+        info.id = eid;
+        info.prog_type = TRACE_PROG_TC;
         info.prog_id = target_prog_id;
         bpf_map_update_elem(&trace_work, &work_key, &info, BPF_ANY);
-
-        // bpf_printk("[TRACE] xdp_handler entry id=%llu\n", event_id);
+        // bpf_printk("[TRACE] tc_handler entry id=%llu info.pkt_len=%u\n", eid, info.pkt_len);
     }
     return 0;
 }
 
+// Fexit program to trace when TC program exits — compute elapsed time and report id
 SEC("fexit/GENERIC")
-int BPF_PROG(trace_xdp_exit, struct xdp_buff *xdp_ctx, int ret)
+int BPF_PROG(trace_tc_exit, struct sk_buff *skb, int ret)
 {
     __u32 zero = 0;
     struct metrics_config *cfg = bpf_map_lookup_elem(&metrics_cfg, &zero);
@@ -68,22 +69,21 @@ int BPF_PROG(trace_xdp_exit, struct xdp_buff *xdp_ctx, int ret)
         enable_ret = cfg->enable_ret;
     }
 
-    __u64 work_key = (__u64)xdp_ctx;
+    __u64 work_key = (__u64)skb;
     struct trace_info *infop = bpf_map_lookup_elem(&trace_work, &work_key);
     if (!infop) {
         return 0;
     }
 
-    if (enable_time) {
-        __u64 now = bpf_ktime_get_ns();
-        infop->duration_ns = now - infop->start_ns;
+    if (enable_time) { 
+        __u64 now = bpf_ktime_get_ns(); 
+        infop->duration_ns = now - infop->start_ns; 
     }
 
     if (enable_ret) {
         infop->ret = ret;
     }
 
-    /* Emit finalized event to ring buffer */
     struct trace_info *out = bpf_ringbuf_reserve(&trace_map, sizeof(*infop), 0);
     if (out) {
         __builtin_memcpy(out, infop, sizeof(*infop));
@@ -91,9 +91,8 @@ int BPF_PROG(trace_xdp_exit, struct xdp_buff *xdp_ctx, int ret)
     }
     bpf_map_delete_elem(&trace_work, &work_key);
 
-    // if ((enable_time || enable_ret) && infop) {
-    //     bpf_printk("[TRACE] xdp_handler exit id=%llu dur_ns=%llu ret=%d\n",
-    //            infop->id, infop->duration_ns, ret);
+    // if (enable_time || enable_ret) {
+    //     bpf_printk("[TRACE] tc_handler exit id=%llu dur_ns=%llu pkt_len=%llu\n", infop->id, infop->duration_ns, infop->pkt_len);
     // }
     
     return 0;
