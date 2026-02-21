@@ -1,10 +1,9 @@
 #ifndef __THROTTLE_H__
 #define __THROTTLE_H__
 
-// Use vmlinux.h types if available, otherwise include linux/types.h
-#ifndef __u64
-#include <linux/types.h>
-#endif
+// This header is shared between BPF programs and userspace
+// BPF programs should include vmlinux.h or linux/types.h before this
+// Userspace should include stdint.h or linux/types.h before this
 
 // Token bucket configuration
 #define TOKEN_BUCKET_KEY 0

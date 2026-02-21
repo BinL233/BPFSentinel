@@ -15,6 +15,7 @@
 #include <string.h>
 #include <signal.h>
 #include <time.h>
+#include <linux/types.h>
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 #include "throttle.h"
