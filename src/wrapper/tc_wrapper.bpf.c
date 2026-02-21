@@ -3,6 +3,11 @@
 #include "../visor/throttle.bpf.h"
 #include "wrapper.bpf.h"
 
+// TC action constants (in case vmlinux.h doesn't have them)
+#ifndef TC_ACT_OK
+#define TC_ACT_OK 0
+#endif
+
 char LICENSE[] SEC("license") = "GPL";
 
 SEC("tc")
