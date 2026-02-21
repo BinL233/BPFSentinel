@@ -23,6 +23,23 @@ have_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
 
+# Check if wrappers are enabled in config
+get_use_wrappers() {
+  if have_cmd jq; then
+    jq -r '.use_wrappers // false' "$CONFIG_PATH" 2>/dev/null || echo "false"
+  else
+    python3 - "$CONFIG_PATH" <<'PY'
+import json,sys
+try:
+  with open(sys.argv[1],'r') as f:
+    d=json.load(f)
+  print('true' if d.get('use_wrappers',False) else 'false')
+except:
+  print('false')
+PY
+  fi
+}
+
 # Read targets from config.json -> lines: name|type|fentry|fexit
 get_targets() {
   if have_cmd jq; then
@@ -113,9 +130,18 @@ detach_xdp_if_match() {
   fi
 }
 
-# TC: remove filters matching target OR wrapper name
+# TC: remove filters matching target OR wrapper name (or ALL if wrappers enabled)
 detach_tc_if_match() {
   local want_name="$1"
+  local use_wrappers="$2"
+  
+  # If wrappers enabled, remove ALL TC filters on ingress
+  if [ "$use_wrappers" = "true" ]; then
+    log "Removing ALL TC ingress filters (wrappers enabled)"
+    tc filter del dev "$IFACE" ingress 2>/dev/null || true
+    return 0
+  fi
+  
   # Prefer JSON path: find bpf filters, read their program id, map to name via bpftool, delete on match
   if have_cmd jq && have_cmd bpftool; then
     local entries
@@ -182,25 +208,39 @@ unpin_link_if_exists() {
   fi
 }
 
-# SOCKOPS: detach target OR wrapper programs
+# SOCKOPS: detach target OR wrapper programs (or ALL if wrappers enabled)
 detach_sockops_by_name() {
   local want="$1"
+  local use_wrappers="$2"
+  
   if have_cmd bpftool; then
-    if have_cmd jq; then
-      # Get IDs for target name OR sockops_wrapper
-      ids=$(bpftool prog show -j 2>/dev/null | jq -r '.[] | select(.type=="sock_ops" and (.name=="'"$want"'" or .name=="sockops_wrapper")) | .id' || true)
+    local ids
+    if [ "$use_wrappers" = "true" ]; then
+      # Remove ALL sock_ops programs when wrappers enabled
+      log "Removing ALL sock_ops programs (wrappers enabled)"
+      if have_cmd jq; then
+        ids=$(bpftool prog show -j 2>/dev/null | jq -r '.[] | select(.type=="sock_ops") | .id' || true)
+      else
+        ids=$(bpftool prog show 2>/dev/null | awk '/sock_ops/{getline; if($1 ~ /^[0-9]+:$/){id=$1; gsub(":","",id); print id}}' || true)
+      fi
     else
-      ids=$(bpftool prog show 2>/dev/null | awk '/sock_ops/{keep=1} /prog/{if(keep){id=$2; gsub(":","",id)}; if(keep){}} /name/{if(keep){nm=$2; if(nm=="'"$want"'" || nm=="sockops_wrapper"){print id}}; keep=0}' || true)
+      # Only remove matching programs
+      if have_cmd jq; then
+        ids=$(bpftool prog show -j 2>/dev/null | jq -r '.[] | select(.type=="sock_ops" and (.name=="'"$want"'" or .name=="sockops_wrapper")) | .id' || true)
+      else
+        ids=$(bpftool prog show 2>/dev/null | awk 'BEGIN{keep=0} /^[0-9]+:/{id=$1; gsub(":","",id)} /sock_ops/{keep=1} /name/{if(keep){nm=$2; if(nm=="'"$want"'" || nm=="sockops_wrapper"){print id}}; keep=0}' || true)
+      fi
     fi
+    
     if [ -n "${ids:-}" ]; then
       while read -r id; do
         if [ -n "$id" ]; then
-          log "Detaching sock_ops id=$id from $CGROUP_PATH (name=$want or wrapper)"
+          log "Detaching sock_ops id=$id from $CGROUP_PATH"
           bpftool cgroup detach "$CGROUP_PATH" sock_ops id "$id" 2>/dev/null || true
         fi
       done <<< "$ids"
     else
-      log "No sock_ops program named '$want' or sockops_wrapper found"
+      log "No sock_ops programs found"
     fi
   else
     log "bpftool not found; skipping sockops detach"
@@ -254,6 +294,12 @@ detach_tracer_links() {
 
 log "Applying scoped cleanup for targets in $CONFIG_PATH on IFACE=$IFACE"
 
+# Check if wrappers are enabled
+USE_WRAPPERS=$(get_use_wrappers)
+if [ "$USE_WRAPPERS" = "true" ]; then
+  log "Wrappers enabled - using aggressive cleanup"
+fi
+
 # Iterate targets and perform type-specific scoped cleanup
 i=0
 while [ $i -lt ${#T_NAMES[@]} ]; do
@@ -264,7 +310,7 @@ while [ $i -lt ${#T_NAMES[@]} ]; do
       detach_xdp_if_match "$name"
       ;;
     tc)
-      detach_tc_if_match "$name"
+      detach_tc_if_match "$name" "$USE_WRAPPERS"
       ;;
     kprobe)
       unpin_link_if_exists "$name"
@@ -273,7 +319,7 @@ while [ $i -lt ${#T_NAMES[@]} ]; do
       unpin_link_if_exists "$name"
       ;;
     sockops)
-      detach_sockops_by_name "$name"
+      detach_sockops_by_name "$name" "$USE_WRAPPERS"
       ;;
     *)
       ;;
