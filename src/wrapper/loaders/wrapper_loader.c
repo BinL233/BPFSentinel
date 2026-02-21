@@ -18,7 +18,7 @@
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
 #include <net/if.h>
-#include "../utils/cJSON.h"
+#include "../../utils/cJSON.h"
 
 // Store loaded objects to keep them alive
 static struct bpf_object *xdp_wrapper_obj = NULL;
@@ -461,7 +461,7 @@ int main(int argc, char **argv)
 
     // Check if wrappers enabled
     cJSON *use_wrappers_json = cJSON_GetObjectItemCaseSensitive(root, "use_wrappers");
-    int use_wrappers = (use_wrappers_json && cJSON_IsBool(use_wrappers_json) && cJSON_IsTrue(use_wrappers_json));
+    int use_wrappers = (use_wrappers_json && (use_wrappers_json->type == cJSON_True));
     
     if (!use_wrappers) {
         printf("[wrapper] Wrappers disabled in config, exiting\n");
@@ -503,19 +503,13 @@ int main(int argc, char **argv)
             if (load_tc_wrapper(ifname, name) == 0) {
                 tc_loaded = 1;
             }
-        } else if (strcmp(type, "kprobe") == 0 && !kprobe_loaded) {
-            if (load_kprobe_wrapper(name) == 0) {
-                kprobe_loaded = 1;
-            }
         } else if (strcmp(type, "sockops") == 0 && !sockops_loaded) {
             if (load_sockops_wrapper(name) == 0) {
                 sockops_loaded = 1;
             }
-        } else if (strcmp(type, "fentry") == 0 && !fentry_loaded) {
-            if (load_fentry_wrapper(name) == 0) {
-                fentry_loaded = 1;
-            }
         }
+        // Note: kprobe and fentry wrappers skipped - they require dynamic attachment
+        // with specific kernel function names, which should come from target config
     }
 
     cJSON_Delete(root);

@@ -10,7 +10,7 @@
 
 char LICENSE[] SEC("license") = "GPL";
 
-SEC("tc")
+SEC("classifier")
 int tc_wrapper(struct __sk_buff *skb)
 {
     __u64 start_time = 0;

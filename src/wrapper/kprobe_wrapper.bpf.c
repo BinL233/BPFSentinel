@@ -6,7 +6,7 @@
 
 char LICENSE[] SEC("license") = "GPL";
 
-SEC("kprobe")
+SEC("kprobe/__x64_sys_unlink")
 int kprobe_wrapper(struct pt_regs *ctx)
 {
     __u64 start_time = 0;

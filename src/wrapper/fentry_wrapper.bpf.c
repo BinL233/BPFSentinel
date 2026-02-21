@@ -6,7 +6,7 @@
 
 char LICENSE[] SEC("license") = "GPL";
 
-SEC("fentry/GENERIC")
+SEC("fentry/__x64_sys_unlink")
 int BPF_PROG(fentry_wrapper)
 {
     __u64 start_time = 0;
