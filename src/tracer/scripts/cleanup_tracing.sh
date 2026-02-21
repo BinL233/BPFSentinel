@@ -221,14 +221,16 @@ detach_sockops_by_name() {
       if have_cmd jq; then
         ids=$(bpftool prog show -j 2>/dev/null | jq -r '.[] | select(.type=="sock_ops") | .id' || true)
       else
-        ids=$(bpftool prog show 2>/dev/null | awk '/sock_ops/{getline; if($1 ~ /^[0-9]+:$/){id=$1; gsub(":","",id); print id}}' || true)
+        # Parse: "344: sock_ops  name sockops_handler..."
+        ids=$(bpftool prog show 2>/dev/null | awk '/sock_ops/{id=$1; gsub(":","",id); print id}' || true)
       fi
     else
       # Only remove matching programs
       if have_cmd jq; then
         ids=$(bpftool prog show -j 2>/dev/null | jq -r '.[] | select(.type=="sock_ops" and (.name=="'"$want"'" or .name=="sockops_wrapper")) | .id' || true)
       else
-        ids=$(bpftool prog show 2>/dev/null | awk 'BEGIN{keep=0} /^[0-9]+:/{id=$1; gsub(":","",id)} /sock_ops/{keep=1} /name/{if(keep){nm=$2; if(nm=="'"$want"'" || nm=="sockops_wrapper"){print id}}; keep=0}' || true)
+        # Parse: "344: sock_ops  name sockops_handler..."
+        ids=$(bpftool prog show 2>/dev/null | awk '/sock_ops/{id=$1; gsub(":","",id)} /name '"$want"'/{print id} /name sockops_wrapper/{print id}' || true)
       fi
     fi
     
