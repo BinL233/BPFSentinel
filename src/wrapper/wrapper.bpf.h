@@ -2,7 +2,6 @@
 #define __WRAPPER_BPF_H__
 
 #include "../visor/throttle.h"
-#include "../visor/maps.bpf.h"
 
 // Single prog_array map for all wrapper types
 struct {
