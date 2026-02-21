@@ -79,7 +79,7 @@ is_tracer_name() {
 }
 
 log "Stopping running loader/tracer processes for this project..."
-for pname in tracer_loader target_loader; do
+for pname in tracer_loader target_loader wrapper_loader; do
   pids=$(pgrep -f "$pname" || true)
   if [ -n "$pids" ]; then
     log "Killing $pname PIDs: $pids"
@@ -92,7 +92,7 @@ for pname in tracer_loader target_loader; do
   fi
 done
 
-# XDP: only detach if the program on IFACE matches configured target name
+# XDP: detach if program matches target OR wrapper name
 detach_xdp_if_match() {
   local want="$1"
   local cur=""
@@ -101,8 +101,9 @@ detach_xdp_if_match() {
   else
     cur=$(ip -details link show dev "$IFACE" 2>/dev/null | awk '/prog xdp/{for(i=1;i<=NF;i++){if($i=="name"){print $(i+1);break}}}' || true)
   fi
-  if [ -n "$cur" ] && [ "$cur" = "$want" ]; then
-    log "Detaching XDP '$cur' from $IFACE (match '$want')"
+  # Check if current matches target name OR is xdp_wrapper
+  if [ -n "$cur" ] && { [ "$cur" = "$want" ] || [ "$cur" = "xdp_wrapper" ]; }; then
+    log "Detaching XDP '$cur' from $IFACE (match '$want' or wrapper)"
     ip link set dev "$IFACE" xdp off 2>/dev/null || true
     ip link set dev "$IFACE" xdpgeneric off 2>/dev/null || true
     ip link set dev "$IFACE" xdpoffload off 2>/dev/null || true
@@ -112,7 +113,7 @@ detach_xdp_if_match() {
   fi
 }
 
-# TC: remove only filters attached from our object .output/<name>.o
+# TC: remove filters matching target OR wrapper name
 detach_tc_if_match() {
   local want_name="$1"
   # Prefer JSON path: find bpf filters, read their program id, map to name via bpftool, delete on match
@@ -132,7 +133,8 @@ detach_tc_if_match() {
           continue
         fi
         pname=$(bpftool prog show id "$pid" -j 2>/dev/null | jq -r '.name // empty' || true)
-        if [ -n "$pname" ] && [ "$pname" = "$want_name" ]; then
+        # Match target name OR tc_wrapper
+        if [ -n "$pname" ] && { [ "$pname" = "$want_name" ] || [ "$pname" = "tc_wrapper" ]; }; then
           if [ -n "$handle" ] && [ "$handle" != "null" ] && [ "$handle" != "empty" ]; then
             log "Deleting TC bpf filter pref=$pref handle=$handle (prog=$pname id=$pid)"
             tc filter del dev "$IFACE" ingress pref "$pref" handle "$handle" bpf 2>/dev/null || true
@@ -155,7 +157,8 @@ detach_tc_if_match() {
         cur_id=$(echo "$line" | awk '{for(i=1;i<=NF;i++){if($i=="id"){print $(i+1);break}}}')
         if have_cmd bpftool && [ -n "$cur_id" ]; then
           pname=$(bpftool prog show id "$cur_id" 2>/dev/null | awk '{for(i=1;i<=NF;i++){if($i=="name"){print $(i+1);break}}}')
-          if [ -n "$pname" ] && [ "$pname" = "$want_name" ]; then
+          # Match target name OR tc_wrapper
+          if [ -n "$pname" ] && { [ "$pname" = "$want_name" ] || [ "$pname" = "tc_wrapper" ]; }; then
             if [ -n "$cur_handle" ]; then
               log "Deleting TC bpf filter pref=$cur_pref handle=$cur_handle (prog=$pname id=$cur_id)"
               tc filter del dev "$IFACE" ingress pref "$cur_pref" handle "$cur_handle" bpf 2>/dev/null || true
@@ -179,24 +182,25 @@ unpin_link_if_exists() {
   fi
 }
 
-# SOCKOPS: detach only our program names
+# SOCKOPS: detach target OR wrapper programs
 detach_sockops_by_name() {
   local want="$1"
   if have_cmd bpftool; then
     if have_cmd jq; then
-      ids=$(bpftool prog show -j 2>/dev/null | jq -r '.[] | select(.type=="sock_ops" and .name=="'"$want"'") | .id' || true)
+      # Get IDs for target name OR sockops_wrapper
+      ids=$(bpftool prog show -j 2>/dev/null | jq -r '.[] | select(.type=="sock_ops" and (.name=="'"$want"'" or .name=="sockops_wrapper")) | .id' || true)
     else
-      ids=$(bpftool prog show 2>/dev/null | awk '/sock_ops/{keep=1} /prog/{if(keep){id=$2; gsub(":","",id)}; if(keep){}} /name/{if(keep){nm=$2; if(nm=="'"$want"'"){print id}}; keep=0}' || true)
+      ids=$(bpftool prog show 2>/dev/null | awk '/sock_ops/{keep=1} /prog/{if(keep){id=$2; gsub(":","",id)}; if(keep){}} /name/{if(keep){nm=$2; if(nm=="'"$want"'" || nm=="sockops_wrapper"){print id}}; keep=0}' || true)
     fi
     if [ -n "${ids:-}" ]; then
       while read -r id; do
         if [ -n "$id" ]; then
-          log "Detaching sock_ops id=$id from $CGROUP_PATH (name=$want)"
+          log "Detaching sock_ops id=$id from $CGROUP_PATH (name=$want or wrapper)"
           bpftool cgroup detach "$CGROUP_PATH" sock_ops id "$id" 2>/dev/null || true
         fi
       done <<< "$ids"
     else
-      log "No sock_ops program named '$want' found"
+      log "No sock_ops program named '$want' or sockops_wrapper found"
     fi
   else
     log "bpftool not found; skipping sockops detach"
@@ -291,6 +295,20 @@ while [ $i -lt ${#T_NAMES[@]} ]; do
     unpin_link_if_exists "${T_FEXIT[$i]}"
   fi
   i=$((i+1))
+done
+
+# Clean up wrapper-specific pinned resources
+log "Cleaning up wrapper pinned maps..."
+for map_name in token_bucket stats_map prog_array; do
+  map_path="/sys/fs/bpf/$map_name"
+  if [ -e "$map_path" ]; then
+    rm -f "$map_path" && log "Removed pinned map $map_path"
+  fi
+done
+
+# Remove wrapper pinned links if any
+for wrapper_name in xdp_wrapper tc_wrapper kprobe_wrapper sockops_wrapper fentry_wrapper; do
+  unpin_link_if_exists "$wrapper_name"
 done
 
 log "Scoped cleanup complete."

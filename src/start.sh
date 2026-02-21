@@ -1,3 +1,10 @@
+#!/usr/bin/env bash
+
+set -e
+
+# Move to tracer directory
+cd "$(dirname "$0")/tracer"
+
 echo "[MAKE CLEAN]"
 sudo make clean
 echo

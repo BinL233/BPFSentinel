@@ -1,7 +1,4 @@
-#include <linux/bpf.h>
-#include <linux/pkt_cls.h>
-#include <linux/if_ether.h>
-#include <linux/ip.h>
+#include "utils/vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include "../visor/throttle.bpf.h"
 #include "wrapper.bpf.h"

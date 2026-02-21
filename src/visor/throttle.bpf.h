@@ -1,7 +1,6 @@
 #ifndef __THROTTLE_BPF_H__
 #define __THROTTLE_BPF_H__
 
-#include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 #include "throttle.h"
 #include "maps.bpf.h"
